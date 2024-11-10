@@ -21,7 +21,7 @@ export class UserService {
 
   async getAllUsers(): Promise<User[]> {
     this.logger.log('From DB, Getting Users');
-    return this.userModel.find().exec();
+    return await this.userModel.find();
   }
 
   async getUserById(id: string): Promise<User | null> {
@@ -30,7 +30,7 @@ export class UserService {
       throw new NotFoundException(`User with id ${id} does not exist`);
     }
 
-    const user = await this.userModel.findById(id).exec();
+    const user = await this.userModel.findById(id);
 
     if (!user) {
       throw new NotFoundException(`User with id ${id} does not exist`);
@@ -41,7 +41,7 @@ export class UserService {
   }
 
   async getUserByUsername(username: string): Promise<UserDocument | null> {
-    const user = this.userModel.findOne({ username }).exec();
+    const user = await this.userModel.findOne({ username });
     if (!user) {
       this.logger.warn(`User not found: "${username}"`);
       throw new NotFoundException(`User with name ${username} does not exist`);
@@ -52,7 +52,7 @@ export class UserService {
   async createUser(user: Partial<User>): Promise<void> {
     const { username, password } = user;
 
-    const existingUser = await this.userModel.findOne({ username }).exec();
+    const existingUser = await this.userModel.findOne({ username });
 
     // Check if the username already exists
     if (existingUser) {
@@ -61,7 +61,7 @@ export class UserService {
 
     // Hash the password
     const hashedPassword = await this.authService.hashPassword(password);
-    const newUser = new this.userModel({
+    const newUser = await this.userModel.create({
       username,
       password: hashedPassword,
       // roles: ['user'], // Not needed since default is set in schema
@@ -76,7 +76,7 @@ export class UserService {
 
   // Admin full update
   async updateUserById(id: string, user: User): Promise<void> {
-    const userDb = await this.userModel.findById(id).exec();
+    const userDb = await this.userModel.findById(id);
 
     if (!userDb) {
       throw new NotFoundException(`User with id ${id} does not exist`);
@@ -86,9 +86,9 @@ export class UserService {
     // Check if the username is being updated
     if (user.username && user.username !== userDb.username) {
       // Query the database to check if the new username is taken
-      const existingUser = await this.userModel
-        .findOne({ username: user.username })
-        .exec();
+      const existingUser = await this.userModel.findOne({
+        username: user.username,
+      });
 
       if (existingUser) {
         throw new ConflictException(`Username ${user.username} already exists`);
@@ -98,7 +98,10 @@ export class UserService {
     if (user.password) {
       userDb.password = await this.authService.hashPassword(user.password);
     }
-    userDb.roles = user.roles || userDb.roles;
+    // userDb.roles = user.roles || userDb.roles;
+    if (user.roles) {
+      userDb.roles = user.roles;
+    }
 
     await userDb.save();
 
@@ -107,7 +110,7 @@ export class UserService {
 
   // user-initiated updates
   async patchUserById(id: string, partialUser: Partial<User>): Promise<void> {
-    const userDb = await this.userModel.findById(id).exec();
+    const userDb = await this.userModel.findById(id);
 
     if (!userDb) {
       throw new NotFoundException(`User with id ${id} does not exist`);
@@ -117,9 +120,9 @@ export class UserService {
     // Check if the username is being updated
     if (partialUser.username && partialUser.username !== userDb.username) {
       // Query the database to check if the new username is taken
-      const existingUser = await this.userModel
-        .findOne({ username: partialUser.username })
-        .exec();
+      const existingUser = await this.userModel.findOne({
+        username: partialUser.username,
+      });
 
       if (existingUser) {
         throw new ConflictException(
@@ -149,7 +152,7 @@ export class UserService {
       throw new NotFoundException(`User with id ${id} does not exist`);
     }
 
-    await this.userModel.findByIdAndDelete(id).exec();
+    await this.userModel.findByIdAndDelete(id);
 
     this.logger.log(`"From DB, Deleted Team with id: ${id}`);
   }
